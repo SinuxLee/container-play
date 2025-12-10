@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  # 1. Config Server（单节点）
+  mongodb-cfg:
+    image: mongo:6.0
+    container_name: mongodb-cfg
+    command: >
+      mongod --config /config/mongod.conf
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: admin
+    volumes:
+      - /data/mongodb/cfg/db:/data/db
+      - /data/mongodb/cfg/mongod.conf:/config/mongod.conf:ro
+    ports:
+      # configsvr 通常不对外暴露，这里示例保留，方便调试
+      - "27019:27017"
+
+  # 2. Shard0（单节点 replica set）
+  mongodb-shard0:
+    image: mongo:6.0
+    container_name: mongodb-shard0
+    command: >
+      mongod --config /config/mongod.conf
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: admin
+    volumes:
+      - /data/mongodb/shard0/db:/data/db
+      - /data/mongodb/shard0/mongod.conf:/config/mongod.conf:ro
+    ports:
+      # shard0 自己端口（调试用）
+      - "27018:27017"
+
+  # 3. mongos（路由进程）
+  mongodb-mongos:
+    image: mongo:6.0
+    container_name: mongodb-mongos
+    depends_on:
+      - mongodb-cfg
+      - mongodb-shard0
+    command: >
+      mongos --config /config/mongos.conf
+    ports:
+      - "27017:27017"
+    volumes:
+      - /data/mongodb/mongos/mongos.conf:/config/mongos.conf:ro
