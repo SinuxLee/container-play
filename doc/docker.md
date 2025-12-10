@@ -129,3 +129,10 @@ Docker容器运行的时候有 host、bridge、none 三种网络可供配置。
 # 因为容器本身与宿主机共用了网络，容器中暴露端口等同于宿主机暴露端口
 docker run -d --name nginx --network host nginx
 ```
+
+### 异常处理
+#### WARNING: IPv4 forwarding is disabled. Networking will not work
+```bash
+echo "net.ipv4.ip_forward=1" >>/usr/lib/sysctl.d/00-system.conf && sysctl -p
+systemctl restart network && systemctl restart docker
+```

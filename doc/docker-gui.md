@@ -5,7 +5,7 @@ https://www.portainer.io/installation/
 # 运行portaainer
 docker run -d \
 --name=portainer \
---restart=always \
+--restart=unless-stopped \
 -p 8000:8000 \
 -p 9000:9000 \
 -v /var/run/docker.sock:/var/run/docker.sock \
