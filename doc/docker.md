@@ -1,6 +1,6 @@
 ### 安装
 
-##### 系统版本 CentOS/Rocky
+##### 系统版本 CentOS
 ```bash
 yum update -y
 
@@ -18,11 +18,14 @@ yum install -y iptables iptables-services
 systemctl enable iptables
 systemctl start iptables
 
-# 获取安装脚本
+### 获取安装脚本
+# 海外
 curl -fsSL https://get.docker.com/ -o /tmp/get-docker.sh
+# 国内
+curl -fsSL https://get.daocloud.io/docker/ -o /tmp/get-docker.sh
 
-# 安装docker
-sudo sh /tmp/get-docker.sh
+# 安装docker yum install docker-ce docker-ce-cli -y
+sudo sh /tmp/get-docker.sh --mirror Aliyun
 
 # 设置开机启动
 systemctl enable docker --now
@@ -35,7 +38,15 @@ docker info
 
 # 创建 docker 容器数据存储目录
 mkdir -p /mnt/docker/{consul,mongo,mysql,redis}
+
+# 建立 docker 组
+sudo groupadd docker
+
+# 非 root 用户也能运行 docker
+sudo usermod -aG docker libz
 ```
+
+##### 系统版本 Rocky9
 
 ### dockerd 后台进程:
 启动参数
@@ -47,6 +58,35 @@ mkdir -p /mnt/docker/{consul,mongo,mysql,redis}
 -H # 设置后台模式下指定socket绑定 //docker -H tcp://0.0.0.0:2375
 --ip="0.0.0.0" # 设置容器绑定IP时使用的默认IP地址
 --ip-forward=true # 设置启动容器的 net.ipv4.ip_forward ；也可以开启整个系统的转发 sysctl -w net.ipv4.ip_forward=1
+```
+
+### 配置 dockerd
+镜像加速, 修改文件 /etc/docker/daemon.json
+```json
+{
+  "registry-mirrors": [
+     "https://ckq4qobq.mirror.aliyuncs.com",
+     "https://docker.mirrors.ustc.edu.cn/",
+     "https://hub-mirror.c.163.com"
+   ],
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "10m",
+    "max-file": "3"
+  }
+}
+```
+重启服务
+```bash
+systemctl daemon-reload
+systemctl restart docker
+```
+
+限制使用的资源数量，dockerd 默认会占用较多的内存
+```ini
+# vim /etc/systemd/system/multi-user.target.wants/docker.service
+[Service]
+MemoryMax=768M # 添加限制
 ```
 
 ### 日志
