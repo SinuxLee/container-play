@@ -1,4 +1,5 @@
 #!/usr/bin/bash env
+set -ue
 
 # 自定义文件在 /etc/mysql/conf.d/
 docker run -d \

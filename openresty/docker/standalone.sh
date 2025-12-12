@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -ueo pipefail
 
 mkdir -p openresty/{conf,conf.d,html,logs,lua} && cd openresty
 

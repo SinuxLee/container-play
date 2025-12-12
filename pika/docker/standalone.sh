@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -ueo pipefail
 
 mkdir -p pika/{conf,db,log}
 cat > pika/conf/pika.conf <<'EOF'

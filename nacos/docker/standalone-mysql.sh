@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -ueo pipefail
 
 # 外部存储版
 # CREATE DATABASE nacos;

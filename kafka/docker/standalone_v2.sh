@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -ue
+set -ueo pipefail
 
 # 先启动 zookeeper
 docker run -d --name zookeeper \

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -ueo pipefail
 
 # default use port 9100
 docker run -d \

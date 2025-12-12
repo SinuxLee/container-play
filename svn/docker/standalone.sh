@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -ue
+set -ueo pipefail
 
 # 创建服务
 docker run -d \

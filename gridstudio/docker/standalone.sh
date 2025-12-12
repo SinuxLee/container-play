@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -ueo pipefail
 
 # https://github.com/ricklamers/gridstudio
 docker run  -d \

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-set -ue
+set -ueo pipefail
+
 export DOCKER_BUILDKIT=1
 
 # REGISTRY='localhost:5000'
