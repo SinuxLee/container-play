@@ -3,6 +3,7 @@ set -ueo pipefail
 
 docker run -d \
 --name nats-server \
+--hostname nats-server \
 --restart=always \
 -p 4222:4222 \
 -v $PWD/nats/data:/data

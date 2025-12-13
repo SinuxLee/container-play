@@ -3,6 +3,7 @@ set -ueo pipefail
 
 # 先启动 zookeeper
 docker run -d --name zookeeper \
+--hostname zookeeper \
 -p 2181:2181 \
 --restart=unless-stopped \
 -e ALLOW_ANONYMOUS_LOGIN=yes \
@@ -11,6 +12,7 @@ bitnamilegacy/zookeeper:3.6
 # 再启动 kafka
 # ADVERTISED_LISTENERS 表示上报给 zookeeper 的服务地址
 docker run -d --name kafka \
+--hostname kafka \
 --restart=unless-stopped \
 --link zookeeper:zookeeper \
 -v $PWD/kafka:/bitnami/kafka \
@@ -32,10 +34,11 @@ bitnamilegacy/kafka:2.6.0 # 阿里云非 serverless 仅支持 2.x
 # 可视化客户端
 # 可以在 container 内使用 host.docker.internal:PORT 来访问宿主机服务
 docker run -d \
+--name kafka-ui \
+--hostname kafka-ui \
 -p 8080:8080 \
 --restart=unless-stopped \
 -e KAFKA_CLUSTERS_0_NAME=local \
 -e KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=host.docker.internal:9093 \
 -e DYNAMIC_CONFIG_ENABLED=true \
---name kafka-ui \
 provectuslabs/kafka-ui

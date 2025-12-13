@@ -11,7 +11,8 @@ docker run --name openresty-temp -d openresty/openresty:rocky \
   && docker rm -f openresty-temp
 
 docker run -d  \
- --name openresty \
+--name openresty \
+--hostname openresty \
 -p 8080:8080 \
 -p 9090:9090 \
 -v $PWD/conf:/usr/local/openresty/nginx/conf \

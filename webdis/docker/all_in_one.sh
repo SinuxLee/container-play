@@ -3,6 +3,7 @@ set -ueo pipefail
 
 docker run -d \
 --name webdis \
+--hostname webdis \
 -p 7379:7379 \
 -e LOCAL_REDIS=true \
 -e WEBSOCKETS=true \

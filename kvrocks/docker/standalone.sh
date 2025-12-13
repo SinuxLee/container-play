@@ -13,6 +13,7 @@ fi
 
 docker run -d \
 --name kvrocks \
+--hostname kvrocks \
 -p 6666:6666 \
 -u root \
 --restart always \

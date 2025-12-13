@@ -59,3 +59,8 @@
 - 运行脚本前请确保已安装 Docker
 - 部分服务可能需要配置环境变量或挂载配置文件
 - 详细的配置说明请参考各子目录中的 README.md 文件
+
+### docker-compose
+V1 版本的 docker-compose.yml 只能被 docker-compose <= 1.6.x 版本支持，已废弃。
+V2版本仅支持单机模式
+V3版本支持单机模式也支持多机模式

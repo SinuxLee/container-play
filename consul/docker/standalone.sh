@@ -19,6 +19,7 @@ EOF
 # client_addr 客户端可以连接的 IP
 
 docker run -d --name consul \
+--hostname consul \
 -p 8500:8500 \
 -p 127.0.0.1:8600:8600 \
 -p 127.0.0.1:8600:8600/udp \

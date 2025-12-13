@@ -9,6 +9,7 @@ set -ueo pipefail
 
 docker run -d \
 --name nacos \
+--hostname nacos \
 --restart=always \
 -p 8848:8848 \
 --link mysql:mysql \

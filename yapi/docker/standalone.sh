@@ -2,6 +2,7 @@
 set -ueo pipefail
 
 docker run -d --name yapi \
+--hostname yapi \
 -p 3030:3000 \
 -e YAPI_ADMIN_ACCOUNT=admin \
 -e YAPI_ADMIN_PASSWORD=Admin123 \

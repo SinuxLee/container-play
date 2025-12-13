@@ -4,6 +4,7 @@ set -ueo pipefail
 # parse-server
 docker run -d \
 --name parse-server \
+--hostname parse-server \
 -p 1337:1337 \
 -e TZ="Asia/Shanghai" \
 # -v $PWD/parse-server:/parse-server \
@@ -16,6 +17,7 @@ parseplatform/parse-server:8.5.0 \
 # parse-dashboard
 docker run -d \
 --name parse-dashboard \
+--hostname parse-dashboard \
 -e TZ="Asia/Shanghai" \
 -p 4040:4040 \
 --link parse-server:parse-server \

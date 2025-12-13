@@ -3,6 +3,7 @@ set -ueo pipefail
 
 docker run -d \
 --name phpmyadmin \
+--hostname phpmyadmin \
 -e PMA_HOST=mysql \
 -e PMA_PORT=3306 \
 -p 13306:80 \

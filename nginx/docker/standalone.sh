@@ -48,6 +48,7 @@ EOF
 
 docker run \
 --name nginx \
+--hostname nginx \
 -d -p 8088:80 \
 --env TZ='Asia/Shanghai' \
 -v "$PWD/nginx/conf/nginx.conf:/etc/nginx/nginx.conf:ro" \

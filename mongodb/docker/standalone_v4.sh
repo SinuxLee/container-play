@@ -3,6 +3,7 @@ set -ueo pipefail
 
 docker run -d \
 --name mongo \
+--hostname mongo \
 -p 27017:27017 \
 -m 1024M \
 --cpus=2 \
