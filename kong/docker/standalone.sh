@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -ueo pipefail
 
-echo > $PWD/kong.yaml << 'EOF'
+cat > $PWD/kong.yaml << 'EOF'
 _format_version: "3.0"
 _transform: true
 

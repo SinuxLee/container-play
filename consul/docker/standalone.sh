@@ -3,7 +3,7 @@ set -ueo pipefail
 
 # gen token: openssl rand -hex 16
 # consul acl bootstrap | tee token.info
-echo > $PWD/consul/config/acl.hc << 'EOF'
+cat > $PWD/consul/config/acl.hc << 'EOF'
 acl {
   enabled = true
   default_policy = "deny"

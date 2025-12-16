@@ -48,7 +48,20 @@ sh.shardCollection("test.user",{ _id: "hashed" })
 
 # 查看数据分布
 db.user.getShardDistribution();
+
+# 查看副本集状态
+rs.status();
+
+# 查看分片集群状态
 sh.status();
+
+# 查看进程状态状态，分析数据性能
+db.serverStatus()
+
+# 查看存储空间及数据文件大小
+# 两个命令结果不一样，后者更详细一些
+db.stats()
+db.c.stats() 
 ```
 
 ### MCP
