@@ -1,0 +1,51 @@
+services:
+  registry:
+    image: registry:2.8.3
+    container_name: registry
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY=/var/lib/registry
+    volumes:
+      - registry_data:/var/lib/registry
+    networks: [devops]
+
+  # 可选：给 registry 一个简单 UI（方便看有哪些镜像/标签）
+  registry-ui:
+    image: joxit/docker-registry-ui:2.5.7
+    container_name: registry-ui
+    restart: unless-stopped
+    environment:
+      - SINGLE_REGISTRY=true
+      - REGISTRY_TITLE=Local Docker Registry
+      - REGISTRY_URL=http://registry:5000
+      # UI 访问路径下拉镜像列表
+    ports:
+      - "5002:80"
+    depends_on: [registry]
+    networks: [devops]
+
+  # 自动更新：定时检查镜像是否有新 digest，有则拉取并重启容器
+  watchtower:
+    image: containrrr/watchtower:1.7.1
+    container_name: watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      # 每 30 秒检查一次（演示用；生产建议 1-5 分钟以上）
+      - WATCHTOWER_POLL_INTERVAL=30
+      # 只更新显式标记了 label 的容器（避免把全机都更新炸了）
+      - WATCHTOWER_LABEL_ENABLE=true
+      # 更新后清理旧镜像，避免磁盘爆
+      - WATCHTOWER_CLEANUP=true
+      # 滚动更新：先起新容器再停旧容器（对某些服务有用）
+      - WATCHTOWER_ROLLING_RESTART=true
+    networks: [devops]
+
+networks:
+  devops:
+
+volumes:
+  registry_data:
