@@ -1,6 +1,6 @@
 services:
   registry:
-    image: registry:2.8.3
+    image: registry:2.8
     container_name: registry
     restart: unless-stopped
     ports:
@@ -13,7 +13,7 @@ services:
 
   # 可选：给 registry 一个简单 UI（方便看有哪些镜像/标签）
   registry-ui:
-    image: joxit/docker-registry-ui:2.5.7
+    image: joxit/docker-registry-ui:2.5
     container_name: registry-ui
     restart: unless-stopped
     environment:
@@ -27,8 +27,9 @@ services:
     networks: [devops]
 
   # 自动更新：定时检查镜像是否有新 digest，有则拉取并重启容器
+  # https://watchtower.nickfedor.com/
   watchtower:
-    image: containrrr/watchtower:1.7.1
+    image: nickfedor/watchtower:1.13
     container_name: watchtower
     restart: unless-stopped
     volumes:

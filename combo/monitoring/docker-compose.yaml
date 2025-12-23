@@ -1,6 +1,6 @@
 services:
   prometheus:
-    image: prom/prometheus:v2.54.1
+    image: prom/prometheus:v3.8.1
     container_name: prometheus
     restart: unless-stopped
     command:
@@ -16,7 +16,7 @@ services:
     networks: [monitoring]
 
   alertmanager:
-    image: prom/alertmanager:v0.27.0
+    image: prom/alertmanager:v0.30.0
     container_name: alertmanager
     restart: unless-stopped
     command:
@@ -30,7 +30,7 @@ services:
     networks: [monitoring]
 
   node-exporter:
-    image: prom/node-exporter:v1.8.2
+    image: prom/node-exporter:v1.10.2
     container_name: node-exporter
     restart: unless-stopped
     # 采集宿主机指标（Linux 常用方式）
@@ -39,10 +39,10 @@ services:
     command:
       - --path.rootfs=/host
     volumes:
-      - /:/host:ro,rslave
+      - /:/host:ro #,rslave
 
   grafana:
-    image: grafana/grafana:11.2.2
+    image: grafana/grafana:12.3
     container_name: grafana
     restart: unless-stopped
     environment:

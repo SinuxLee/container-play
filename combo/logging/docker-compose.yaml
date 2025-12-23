@@ -6,11 +6,14 @@ services:
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
+      # JVM 堆保持 512m，兼顾开发场景下的稳定性
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
     volumes:
       - es_data:/usr/share/elasticsearch/data
     ports:
       - "9200:9200"
+    # 限制 ES 容器最大可用内存，大致控制在 1G 内
+    mem_limit: 1g
     networks: [logging]
 
   kibana:
@@ -19,9 +22,12 @@ services:
     restart: unless-stopped
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      # 限制 Node.js 老生代内存，减少 Kibana 内存占用
+      - NODE_OPTIONS=--max-old-space-size=512
     ports:
       - "5601:5601"
     depends_on: [elasticsearch]
+    mem_limit: 768m
     networks: [logging]
 
   fluent-bit:
@@ -36,6 +42,8 @@ services:
       # 读取容器元数据（可选但常用）
       - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on: [elasticsearch]
+    # Fluent Bit 较轻量，限制在 128MB
+    mem_limit: 128m
     networks: [logging]
 
 networks:
