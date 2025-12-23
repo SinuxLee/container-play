@@ -1,6 +1,6 @@
 最小工作流你需要做的几步：
 
-1. 进 Gitea http://localhost:3001 初始化，建 repo（放 Jenkinsfile）。
+1. 进 Gitea http://localhost:3000 初始化，建 repo（放 Jenkinsfile）。
 2. 进 Jenkins http://localhost:8080 初始化，装插件：
 - Gitea（或 Generic Webhook Trigger）
 - Pipeline、Git、Credentials
