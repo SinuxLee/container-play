@@ -4,6 +4,7 @@ set -ueo pipefail
 docker run -d \
 --name redis \
 --hostname redis \
+-p 6379:6379 \
 -v $PWD/redis:/data \
 --restart=always  \
 redis:7.4 --requirepass "Admin123"
