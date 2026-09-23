@@ -1,5 +1,0 @@
-#!/usr/bin/env bash
-set -ueo pipefail
-
-echo "未实现：mongodb/docker/replica_set_v4.sh。请勿将此脚本作为可用部署方案。" >&2
-exit 2

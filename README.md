@@ -40,7 +40,7 @@
 
 ## 使用方式
 
-每个子目录下的 `docker/` 文件夹中包含了对应软件的 Docker 运行脚本，通常以 `standalone.sh` 命名。
+各软件的 `docker/` 目录放使用原生 `docker run` 等命令的脚本，通常以 `standalone.sh` 命名；多容器组合的 Compose 配置、启动入口脚本及初始化脚本放在同级的 `compose/` 目录。
 
 示例：
 ```bash
@@ -53,6 +53,17 @@
 # 运行 Grafana
 ./grafana/docker/standalone.sh
 ```
+
+`compose/` 下的启动脚本默认执行 `up`，也支持 `down`、`clean`、`ps`、`logs`、`config` 和 `help`。例如：
+
+```bash
+./mysql/compose/master_slave_v8.sh up
+./mysql/compose/master_slave_v8.sh ps
+./mysql/compose/master_slave_v8.sh logs -f
+./mysql/compose/master_slave_v8.sh down
+```
+
+`down` 保留命名卷；`clean` 相当于 `docker compose down --volumes`，会删除该 Compose 项目的持久化数据。`config --quiet` 只检查配置，不启动容器。共用同一项目的入口（例如主从与代理）的 `down` 和 `clean` 都作用于整个项目。
 
 ## 注意事项
 
@@ -92,18 +103,13 @@ CloudBeaver 若检测到已运行的 `mysql` 容器，会自动连接到同一 D
 
 这些脚本共用 `container-play-monitoring` Docker 网络，容器通过名称相互访问。可用 `MONITORING_NETWORK` 为所有脚本指定另一网络名。Prometheus 默认抓取 Node Exporter、将告警发送给 Alertmanager，并包含 `InstanceDown` 规则；Grafana 默认预置 Prometheus 数据源。可选的 `prometheus-alert/docker/standalone.sh` 也加入该网络，但需自行设置 `ALERT_WEBHOOK_URL` 才能接收通知。未设置该变量时，Alertmanager 接收告警但不向外发送通知。Node Exporter 在桥接网络下的部分网络指标可能反映容器命名空间，Docker Desktop 的宿主机指标范围也可能不同。
 
-## 尚未实现的集群脚本
+## 集群示例
 
-以下脚本明确以非零状态退出，避免被误认为已成功部署：
-
-| 软件 | 尚未实现的脚本 |
-| --- | --- |
-| MySQL | `group_replication_v8.sh`、`master_master_v8.sh`、`master_slave_v8.sh`、`proxy_cluster_v8.sh` |
-| Redis | `master_slave_v8.sh`、`sentinel_v8.sh` |
-| MongoDB 4 | `multi_shard_cluster_v4.sh`、`replica_set_v4.sh`、`single_shard_cluster_v4.sh` |
-| Kafka | `standalone_kraft.sh` |
-
+MySQL 8 主从、双主、Group Replication 和 ProxySQL 示例见 `mysql/README.md`。
 MongoDB 7 的单分片 Compose 和认证单节点示例见 `mongodb/README.md`；MongoDB 6 Compose 保留供已有数据迁移参考。
+MongoDB 4.4 的副本集及单、双分片本地示例也见 `mongodb/README.md`。
+Redis 8 主从和 Sentinel 示例见 `redis/README.md`。
+Kafka 3.9 KRaft 和 Kafka UI 示例见 `kafka/README.md`。
 
 ### docker-compose
 本仓库使用 `docker compose` 命令和当前的 [Compose Specification](https://docs.docker.com/reference/compose-file/)。

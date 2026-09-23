@@ -61,6 +61,28 @@ docker exec -it mongo7 mongosh admin -u admin -p --authenticationDatabase admin
 
 若同时使用仓库的 Mongo Express，在单节点启动后运行 `ME_CONFIG_MONGODB_SERVER=mongo7 ./mongo-express/docker/standalone.sh`，它会连接 `mongo7:27017`，默认管理员凭据也为 `admin` / `Admin123`。覆盖单节点的账号或密码时，也要设置对应的 `ME_CONFIG_MONGODB_ADMINUSERNAME` / `ME_CONFIG_MONGODB_ADMINPASSWORD`。
 
+## MongoDB 4.4 副本集和分片集群
+
+从仓库根目录运行下列任一脚本。它们使用 `mongo:4.4.25` 和旧版 `mongo` shell，专供本机学习；与下文的 MongoDB 4 认证单节点是相互独立的**无认证**部署。
+
+```bash
+./mongodb/compose/replica_set_v4.sh         # 三成员副本集 rsV4
+./mongodb/compose/single_shard_cluster_v4.sh # 单分片 + mongos
+./mongodb/compose/multi_shard_cluster_v4.sh  # 两分片 + mongos
+```
+
+副本集 Compose 项目名为 `container-play-mongo4-rs`，分片集群为 `container-play-mongo4-shards`，卷互不复用，也不复用 7.0 卷。单分片和双分片脚本操作的是**同一个**分片集群项目；后者添加第二个分片。默认都将 27017 绑定在本机，不能同时使用默认端口。可通过 `HOST_BIND_ADDRESS` 和分片集群专用的 `MONGODB_V4_HOST_PORT` 改变宿主机监听地址与端口，例如 `MONGODB_V4_HOST_PORT=27018 ./mongodb/compose/multi_shard_cluster_v4.sh`。改为非本机地址前应先配置认证与网络访问控制。
+
+副本集成员通过 Compose 网络中的 `mongo-rs1`、`mongo-rs2`、`mongo-rs3` 相互发现。宿主机仅发布第一个成员，若从宿主机连接，应使用 `directConnection=true`；要验证整个副本集，请在 Compose 网络内运行：
+
+```bash
+docker compose -f mongodb/compose/docker-compose-v4-replica-set.yaml exec mongo-rs1 mongo --eval 'rs.status()'
+docker compose -f mongodb/compose/docker-compose-v4-sharded.yaml exec mongodb-mongos mongo --eval 'sh.status()'
+docker compose -f mongodb/compose/docker-compose-v4-sharded.yaml --profile multi exec mongodb-mongos mongo --eval 'sh.status()'
+```
+
+三个集群入口默认执行 `up`，也支持 `down`、`clean`、`ps`、`logs -f` 和 `config --quiet`。例如 `./mongodb/compose/multi_shard_cluster_v4.sh down` 停止分片项目并保留数据；`clean` 还会删除命名卷。单分片与双分片入口共用项目，任一入口的 `down` 或 `clean` 都作用于整个分片项目。MongoDB 4.4 已属于旧版示例，升级至 7.0 时须按官方升级路径逐级处理和备份，不能直接把这些卷挂到 7.0 容器。参考 [MongoDB 分片集群部署说明](https://www.mongodb.com/docs/manual/tutorial/deploy-shard-cluster/) 和 [MongoDB 版本升级路径](https://www.mongodb.com/docs/mongodb-versions/)。
+
 ## MongoDB 4 单节点（旧版示例）
 
 `mongodb/docker/standalone_v4.sh` 是独立示例，`MONGO_INITDB_ROOT_PASSWORD` 默认 `Admin123`，也可通过环境变量覆盖。它和上面的分片集群占用相同的本机端口，请勿同时启动。

@@ -1,0 +1,86 @@
+# Local Redis 8 replication and Sentinel demo. Sentinel clients join this project's network.
+name: container-play-redis8
+
+x-redis-image: &redis-image redis:8.0
+x-redis-password: &redis-password ${REDIS_PASSWORD:-Admin123}
+
+services:
+  redis-master:
+    image: *redis-image
+    environment:
+      REDIS_PASSWORD: *redis-password
+    command: [redis-server, --appendonly, "yes", --requirepass, *redis-password, --masterauth, *redis-password]
+    ports:
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:6379:6379"
+    volumes:
+      - master_data:/data
+    healthcheck:
+      test: [CMD-SHELL, "REDISCLI_AUTH=\"$${REDIS_PASSWORD}\" redis-cli ping | grep -q PONG"]
+      interval: 5s
+      retries: 12
+
+  redis-replica:
+    image: *redis-image
+    environment:
+      REDIS_PASSWORD: *redis-password
+    command: [redis-server, --appendonly, "yes", --replicaof, redis-master, "6379", --requirepass, *redis-password, --masterauth, *redis-password]
+    depends_on:
+      redis-master:
+        condition: service_healthy
+    ports:
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:6380:6379"
+    volumes:
+      - replica_data:/data
+    healthcheck:
+      test: [CMD-SHELL, "REDISCLI_AUTH=\"$${REDIS_PASSWORD}\" redis-cli ping | grep -q PONG"]
+      interval: 5s
+      retries: 12
+
+  redis-sentinel-1:
+    profiles: [sentinel]
+    image: *redis-image
+    user: redis
+    environment:
+      REDIS_PASSWORD: *redis-password
+    entrypoint: [sh, /init-sentinel.sh]
+    volumes:
+      - sentinel1_data:/data
+      - ./init-sentinel.sh:/init-sentinel.sh:ro
+    depends_on:
+      redis-replica:
+        condition: service_healthy
+
+  redis-sentinel-2:
+    profiles: [sentinel]
+    image: *redis-image
+    user: redis
+    environment:
+      REDIS_PASSWORD: *redis-password
+    entrypoint: [sh, /init-sentinel.sh]
+    volumes:
+      - sentinel2_data:/data
+      - ./init-sentinel.sh:/init-sentinel.sh:ro
+    depends_on:
+      redis-replica:
+        condition: service_healthy
+
+  redis-sentinel-3:
+    profiles: [sentinel]
+    image: *redis-image
+    user: redis
+    environment:
+      REDIS_PASSWORD: *redis-password
+    entrypoint: [sh, /init-sentinel.sh]
+    volumes:
+      - sentinel3_data:/data
+      - ./init-sentinel.sh:/init-sentinel.sh:ro
+    depends_on:
+      redis-replica:
+        condition: service_healthy
+
+volumes:
+  master_data:
+  replica_data:
+  sentinel1_data:
+  sentinel2_data:
+  sentinel3_data:

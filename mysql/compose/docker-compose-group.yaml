@@ -1,0 +1,57 @@
+name: container-play-mysql8-group
+x-group-common: &group-common
+  image: mysql:8.0
+  environment:
+    MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-Admin123}
+    MYSQL_ROOT_HOST: "%"
+  healthcheck:
+    test: [CMD-SHELL, "MYSQL_PWD=\"$${MYSQL_ROOT_PASSWORD}\" mysql -uroot -h 127.0.0.1 -e 'SELECT 1' >/dev/null"]
+    interval: 5s
+    retries: 30
+
+services:
+  mysql-gr1:
+    <<: *group-common
+    hostname: mysql-gr1
+    command: ["--server-id=21", "--gtid-mode=ON", "--enforce-gtid-consistency=ON", "--log-bin=mysql-bin", "--log-replica-updates=ON", "--binlog-format=ROW", "--plugin-load-add=group_replication.so", "--group-replication-group-name=183a7683-bf40-4f1c-a86a-f7e3d10dcf42", "--group-replication-start-on-boot=OFF", "--group-replication-local-address=mysql-gr1:33061", "--group-replication-group-seeds=mysql-gr1:33061,mysql-gr2:33061,mysql-gr3:33061", "--group-replication-single-primary-mode=ON", "--group-replication-recovery-get-public-key=ON", "--report-host=mysql-gr1"]
+    ports:
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:${MYSQL_GR1_HOST_PORT:-3321}:3306"
+    volumes:
+      - gr1_data:/var/lib/mysql
+
+  mysql-gr2:
+    <<: *group-common
+    hostname: mysql-gr2
+    command: ["--server-id=22", "--gtid-mode=ON", "--enforce-gtid-consistency=ON", "--log-bin=mysql-bin", "--log-replica-updates=ON", "--binlog-format=ROW", "--plugin-load-add=group_replication.so", "--group-replication-group-name=183a7683-bf40-4f1c-a86a-f7e3d10dcf42", "--group-replication-start-on-boot=OFF", "--group-replication-local-address=mysql-gr2:33061", "--group-replication-group-seeds=mysql-gr1:33061,mysql-gr2:33061,mysql-gr3:33061", "--group-replication-single-primary-mode=ON", "--group-replication-recovery-get-public-key=ON", "--report-host=mysql-gr2"]
+    ports:
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:${MYSQL_GR2_HOST_PORT:-3322}:3306"
+    volumes:
+      - gr2_data:/var/lib/mysql
+
+  mysql-gr3:
+    <<: *group-common
+    hostname: mysql-gr3
+    command: ["--server-id=23", "--gtid-mode=ON", "--enforce-gtid-consistency=ON", "--log-bin=mysql-bin", "--log-replica-updates=ON", "--binlog-format=ROW", "--plugin-load-add=group_replication.so", "--group-replication-group-name=183a7683-bf40-4f1c-a86a-f7e3d10dcf42", "--group-replication-start-on-boot=OFF", "--group-replication-local-address=mysql-gr3:33061", "--group-replication-group-seeds=mysql-gr1:33061,mysql-gr2:33061,mysql-gr3:33061", "--group-replication-single-primary-mode=ON", "--group-replication-recovery-get-public-key=ON", "--report-host=mysql-gr3"]
+    ports:
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:${MYSQL_GR3_HOST_PORT:-3323}:3306"
+    volumes:
+      - gr3_data:/var/lib/mysql
+
+  mysql-group-init:
+    image: mysql:8.0
+    depends_on:
+      mysql-gr1: {condition: service_healthy}
+      mysql-gr2: {condition: service_healthy}
+      mysql-gr3: {condition: service_healthy}
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-Admin123}
+      MYSQL_REPLICATION_PASSWORD: ${MYSQL_REPLICATION_PASSWORD:-Admin123}
+    volumes:
+      - ./init-group.sh:/init.sh:ro
+    entrypoint: [bash, /init.sh]
+    restart: "no"
+
+volumes:
+  gr1_data:
+  gr2_data:
+  gr3_data:

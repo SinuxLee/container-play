@@ -1,0 +1,10 @@
+datadir="/var/lib/proxysql"
+admin_variables=
+{
+  admin_credentials="ops:Admin123"
+  mysql_ifaces="0.0.0.0:6032"
+}
+mysql_variables=
+{
+  interfaces="0.0.0.0:6033"
+}

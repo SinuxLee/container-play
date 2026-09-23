@@ -1,0 +1,50 @@
+# Legacy MongoDB 4.4, unauthenticated three-member replica set for local experiments.
+name: container-play-mongo4-rs
+services:
+  mongo-rs1:
+    image: mongo:4.4.25
+    command: [mongod, --replSet, rsV4, --bind_ip_all]
+    ports:
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:27017:27017"
+    volumes:
+      - rs1_data:/data/db
+    healthcheck:
+      test: [CMD, mongo, --host, localhost:27017, --quiet, --eval, "db.adminCommand({ping:1}).ok"]
+      interval: 5s
+      retries: 20
+
+  mongo-rs2:
+    image: mongo:4.4.25
+    command: [mongod, --replSet, rsV4, --bind_ip_all]
+    volumes:
+      - rs2_data:/data/db
+    healthcheck:
+      test: [CMD, mongo, --host, localhost:27017, --quiet, --eval, "db.adminCommand({ping:1}).ok"]
+      interval: 5s
+      retries: 20
+
+  mongo-rs3:
+    image: mongo:4.4.25
+    command: [mongod, --replSet, rsV4, --bind_ip_all]
+    volumes:
+      - rs3_data:/data/db
+    healthcheck:
+      test: [CMD, mongo, --host, localhost:27017, --quiet, --eval, "db.adminCommand({ping:1}).ok"]
+      interval: 5s
+      retries: 20
+
+  mongo-rs-init:
+    image: mongo:4.4.25
+    depends_on:
+      mongo-rs1: {condition: service_healthy}
+      mongo-rs2: {condition: service_healthy}
+      mongo-rs3: {condition: service_healthy}
+    volumes:
+      - ./init-v4/replica-set.sh:/init.sh:ro
+    entrypoint: [bash, /init.sh]
+    restart: "no"
+
+volumes:
+  rs1_data:
+  rs2_data:
+  rs3_data:

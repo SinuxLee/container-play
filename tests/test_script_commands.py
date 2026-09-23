@@ -10,26 +10,83 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
 class ScriptCommandTests(unittest.TestCase):
-    def test_placeholder_scripts_fail_instead_of_reporting_success(self):
-        scripts = [
-            "mysql/docker/group_replication_v8.sh",
-            "mysql/docker/master_master_v8.sh",
-            "mysql/docker/master_slave_v8.sh",
-            "mysql/docker/proxy_cluster_v8.sh",
-            "redis/docker/master_slave_v8.sh",
-            "redis/docker/sentinel_v8.sh",
-            "mongodb/docker/multi_shard_cluster_v4.sh",
-            "mongodb/docker/replica_set_v4.sh",
-            "mongodb/docker/single_shard_cluster_v4.sh",
-            "kafka/docker/standalone_kraft.sh",
-        ]
-        for script in scripts:
+    def test_docker_directories_do_not_contain_compose_launchers(self):
+        for script in ROOT.glob("*/docker/*.sh"):
             with self.subTest(script=script):
-                result = subprocess.run([str(ROOT / script)], capture_output=True, text=True, timeout=5)
-                self.assertEqual(result.returncode, 2)
-                self.assertIn("未实现", result.stderr)
+                self.assertNotIn("docker compose", script.read_text())
 
-    def run_with_mock_docker(self, script, extra_env=None, repeat=1):
+    def test_mysql_cluster_scripts_select_compose_topologies(self):
+        cases = [
+            ("mysql/compose/master_slave_v8.sh", "docker-compose-replication.yaml", False),
+            ("mysql/compose/proxy_cluster_v8.sh", "docker-compose-replication.yaml", True),
+            ("mysql/compose/master_master_v8.sh", "docker-compose-dual.yaml", False),
+            ("mysql/compose/group_replication_v8.sh", "docker-compose-group.yaml", False),
+        ]
+        for script, filename, proxy in cases:
+            with self.subTest(script=script):
+                calls, docker_envs = self.run_with_mock_docker(script)
+                self.assertEqual(len(calls), 1)
+                self.assertEqual(
+                    pathlib.Path(calls[0][calls[0].index("-f") + 1]).resolve(),
+                    ROOT / "mysql/compose" / filename,
+                )
+                self.assertEqual("--profile" in calls[0], proxy)
+                self.assertEqual(calls[0][-2:], ["up", "-d"])
+                self.assertEqual(docker_envs[0]["MYSQL_ROOT_PASSWORD"], "Admin123")
+
+    def test_mysql_group_restart_bootstraps_member_with_all_gtids(self):
+        with tempfile.TemporaryDirectory() as directory:
+            work = pathlib.Path(directory)
+            state_file = work / "mysql-state.json"
+            state_file.write_text(json.dumps({"online": [], "calls": []}))
+            mysql = work / "mysql"
+            mysql.write_text(
+                "#!/usr/bin/env python3\n"
+                "import json, os, pathlib, re, sys\n"
+                "args = sys.argv[1:]\n"
+                "host = args[args.index('-h') + 1]\n"
+                "query = next((args[args.index(flag) + 1] for flag in ('-Nse', '-e') "
+                "if flag in args), None)\n"
+                "if query is None: query = sys.stdin.read()\n"
+                "path = pathlib.Path(os.environ['MOCK_MYSQL_STATE'])\n"
+                "state = json.loads(path.read_text())\n"
+                "state['calls'].append([host, query])\n"
+                "if 'GTID_SUBSET' in query:\n"
+                "    sets = re.search(r\"GTID_SUBSET\\('([^']*)','([^']*)'\\)\", query).groups()\n"
+                "    def latest(value): return int(value.split('-')[-1]) if value else 0\n"
+                "    print(int(latest(sets[0]) <= latest(sets[1])))\n"
+                "elif '@@GLOBAL.gtid_executed' in query:\n"
+                "    print({'mysql-gr1': 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-2', "
+                "'mysql-gr2': 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-3', "
+                "'mysql-gr3': 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1-3'}[host])\n"
+                "elif 'MEMBER_STATE' in query and 'MEMBER_ID' in query:\n"
+                "    print(int(host in state['online']))\n"
+                "elif 'MEMBER_STATE' in query:\n"
+                "    print(len(state['online']))\n"
+                "if 'START GROUP_REPLICATION' in query and host not in state['online']:\n"
+                "    state['online'].append(host)\n"
+                "path.write_text(json.dumps(state))\n"
+            )
+            mysql.chmod(0o755)
+            env = os.environ.copy()
+            env.update({
+                "PATH": f"{work}:{env['PATH']}",
+                "MOCK_MYSQL_STATE": str(state_file),
+                "MYSQL_ROOT_PASSWORD": "Admin123",
+                "MYSQL_REPLICATION_PASSWORD": "Admin123",
+            })
+            result = subprocess.run(
+                ["bash", str(ROOT / "mysql/compose/init-group.sh")],
+                env=env, capture_output=True, text=True, timeout=15,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            calls = json.loads(state_file.read_text())["calls"]
+            bootstrap_hosts = [host for host, query in calls if "group_replication_bootstrap_group=ON" in query]
+            self.assertEqual(bootstrap_hosts, ["mysql-gr2"])
+            started = [host for host, query in calls if "START GROUP_REPLICATION" in query]
+            self.assertEqual(started, ["mysql-gr2", "mysql-gr1", "mysql-gr3"])
+
+    def run_with_mock_docker(self, script, extra_env=None, repeat=1, args=()):
         with tempfile.TemporaryDirectory() as directory:
             work = pathlib.Path(directory)
             docker = work / "docker"
@@ -77,7 +134,7 @@ class ScriptCommandTests(unittest.TestCase):
             env["TRACKED_ENVS"] = ",".join(tracked)
             for _ in range(repeat):
                 result = subprocess.run(
-                    ["bash", str(ROOT / script)], cwd=work, env=env, text=True,
+                    ["bash", str(ROOT / script), *args], cwd=work, env=env, text=True,
                     capture_output=True, timeout=10,
                 )
                 self.assertEqual(result.returncode, 0, result.stderr)
@@ -170,6 +227,126 @@ class ScriptCommandTests(unittest.TestCase):
             "mongodb/docker/standalone_v7.sh", {"MONGODB_HOST_PORT": "27018"},
         )
         self.assertIn("127.0.0.1:27018:27017", calls[0])
+
+    def test_redis_8_cluster_scripts_start_the_same_compose_project(self):
+        calls, _ = self.run_with_mock_docker("redis/compose/master_slave_v8.sh")
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0][:1], ["compose"])
+        compose_file = pathlib.Path(calls[0][calls[0].index("-f") + 1]).resolve()
+        self.assertEqual(compose_file, ROOT / "redis/compose/docker-compose-v8.yaml")
+        self.assertEqual(calls[0][-4:], ["up", "-d", "redis-master", "redis-replica"])
+
+        calls, _ = self.run_with_mock_docker("redis/compose/sentinel_v8.sh")
+        self.assertEqual(len(calls), 1)
+        self.assertIn("sentinel", calls[0])
+        self.assertEqual(calls[0][-2:], ["up", "-d"])
+
+    def test_redis_sentinel_keeps_writable_state_and_quotes_password(self):
+        with tempfile.TemporaryDirectory() as directory:
+            work = pathlib.Path(directory)
+            server = work / "redis-server"
+            server.write_text("#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$REDIS_SERVER_ARGS\"\n")
+            server.chmod(0o755)
+            config = work / "sentinel.conf"
+            env = os.environ.copy()
+            env.update({
+                "PATH": f"{work}:{env['PATH']}",
+                "REDIS_PASSWORD": 'space "quote" \\ slash',
+                "SENTINEL_CONFIG_PATH": str(config),
+                "REDIS_SERVER_ARGS": str(work / "args"),
+            })
+            script = ROOT / "redis/compose/init-sentinel.sh"
+            result = subprocess.run(["sh", str(script)], env=env, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn('sentinel auth-pass mymaster "space \\"quote\\" \\\\ slash"', config.read_text())
+            self.assertEqual((work / "args").read_text().splitlines(), [str(config), "--sentinel"])
+
+            config.write_text("sentinel monitor mymaster redis-replica 6379 2\n")
+            result = subprocess.run(["sh", str(script)], env=env, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(config.read_text(), "sentinel monitor mymaster redis-replica 6379 2\n")
+
+    def test_kafka_kraft_starts_broker_and_ui_from_one_compose_file(self):
+        calls, _ = self.run_with_mock_docker("kafka/compose/standalone_kraft.sh")
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0][0], "compose")
+        compose_file = pathlib.Path(calls[0][calls[0].index("-f") + 1]).resolve()
+        self.assertEqual(compose_file, ROOT / "kafka/compose/docker-compose-kraft.yaml")
+        self.assertEqual(calls[0][-2:], ["up", "-d"])
+
+        env = os.environ.copy()
+        env["HOST_BIND_ADDRESS"] = "0.0.0.0"
+        env.pop("KAFKA_EXTERNAL_HOST", None)
+        result = subprocess.run(
+            ["bash", str(ROOT / "kafka/compose/standalone_kraft.sh")],
+            env=env, capture_output=True, text=True, timeout=5,
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("KAFKA_EXTERNAL_HOST", result.stderr)
+
+    def test_compose_launchers_support_common_actions(self):
+        scripts = [
+            "kafka/compose/standalone_kraft.sh",
+            "redis/compose/master_slave_v8.sh", "redis/compose/sentinel_v8.sh",
+            "mongodb/compose/replica_set_v4.sh", "mongodb/compose/single_shard_cluster_v4.sh",
+            "mongodb/compose/multi_shard_cluster_v4.sh",
+            "mysql/compose/master_slave_v8.sh", "mysql/compose/proxy_cluster_v8.sh",
+            "mysql/compose/master_master_v8.sh", "mysql/compose/group_replication_v8.sh",
+        ]
+        for script in scripts:
+            with self.subTest(script=script):
+                calls, _ = self.run_with_mock_docker(script, args=("down",))
+                self.assertEqual(calls[0][-1], "down")
+                calls, _ = self.run_with_mock_docker(script, args=("clean",))
+                self.assertEqual(calls[0][-2:], ["down", "--volumes"])
+
+        for script, profile in [
+            ("redis/compose/master_slave_v8.sh", "sentinel"),
+            ("mongodb/compose/single_shard_cluster_v4.sh", "multi"),
+            ("mysql/compose/master_slave_v8.sh", "proxy"),
+        ]:
+            with self.subTest(profile=script):
+                calls, _ = self.run_with_mock_docker(script, args=("clean",))
+                self.assertEqual(calls[0][calls[0].index("--profile") + 1], profile)
+
+        script = "mysql/compose/master_slave_v8.sh"
+        for action, extra, expected in [
+            ("ps", (), ["ps"]),
+            ("logs", ("-f",), ["logs", "--tail=100", "-f"]),
+            ("config", ("--quiet",), ["config", "--quiet"]),
+            ("up", (), ["up", "-d"]),
+        ]:
+            with self.subTest(action=action):
+                calls, _ = self.run_with_mock_docker(script, args=(action, *extra))
+                self.assertEqual(calls[0][-len(expected):], expected)
+
+        help_result = subprocess.run(
+            ["bash", str(ROOT / script), "--help"], capture_output=True, text=True, timeout=5,
+        )
+        self.assertEqual(help_result.returncode, 0)
+        self.assertIn("clean", help_result.stdout)
+        self.assertIn("数据卷", help_result.stdout)
+        invalid_result = subprocess.run(
+            ["bash", str(ROOT / script), "invalid"], capture_output=True, text=True, timeout=5,
+        )
+        self.assertEqual(invalid_result.returncode, 2)
+
+    def test_mongodb_4_cluster_scripts_select_expected_compose_project(self):
+        cases = [
+            ("mongodb/compose/replica_set_v4.sh", "docker-compose-v4-replica-set.yaml", False),
+            ("mongodb/compose/single_shard_cluster_v4.sh", "docker-compose-v4-sharded.yaml", False),
+            ("mongodb/compose/multi_shard_cluster_v4.sh", "docker-compose-v4-sharded.yaml", True),
+        ]
+        for script, filename, multi in cases:
+            with self.subTest(script=script):
+                calls, _ = self.run_with_mock_docker(script)
+                self.assertEqual(len(calls), 1)
+                self.assertEqual(
+                    pathlib.Path(calls[0][calls[0].index("-f") + 1]).resolve(),
+                    ROOT / "mongodb/compose" / filename,
+                )
+                self.assertEqual("--profile" in calls[0], multi)
+                self.assertEqual(calls[0][-2:], ["up", "-d"])
 
     def test_consul_reuses_generated_token(self):
         _, docker_envs = self.run_with_mock_docker("consul/docker/standalone.sh", repeat=2)

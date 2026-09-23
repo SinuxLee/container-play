@@ -1,0 +1,50 @@
+name: container-play-mysql8-dual
+services:
+  mysql-a:
+    image: mysql:8.0
+    hostname: mysql-a
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-Admin123}
+      MYSQL_ROOT_HOST: "%"
+    command: ["--server-id=11", "--gtid-mode=ON", "--enforce-gtid-consistency=ON", "--log-bin=mysql-bin", "--log-replica-updates=ON", "--binlog-format=ROW", "--auto-increment-increment=2", "--auto-increment-offset=1"]
+    healthcheck:
+      test: [CMD-SHELL, "MYSQL_PWD=\"$${MYSQL_ROOT_PASSWORD}\" mysql -uroot -h 127.0.0.1 -e 'SELECT 1' >/dev/null"]
+      interval: 5s
+      retries: 30
+    ports:
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:${MYSQL_DUAL_A_HOST_PORT:-3310}:3306"
+    volumes:
+      - a_data:/var/lib/mysql
+
+  mysql-b:
+    image: mysql:8.0
+    hostname: mysql-b
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-Admin123}
+      MYSQL_ROOT_HOST: "%"
+    command: ["--server-id=12", "--gtid-mode=ON", "--enforce-gtid-consistency=ON", "--log-bin=mysql-bin", "--log-replica-updates=ON", "--binlog-format=ROW", "--auto-increment-increment=2", "--auto-increment-offset=2"]
+    healthcheck:
+      test: [CMD-SHELL, "MYSQL_PWD=\"$${MYSQL_ROOT_PASSWORD}\" mysql -uroot -h 127.0.0.1 -e 'SELECT 1' >/dev/null"]
+      interval: 5s
+      retries: 30
+    ports:
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:${MYSQL_DUAL_B_HOST_PORT:-3311}:3306"
+    volumes:
+      - b_data:/var/lib/mysql
+
+  mysql-dual-init:
+    image: mysql:8.0
+    depends_on:
+      mysql-a: {condition: service_healthy}
+      mysql-b: {condition: service_healthy}
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-Admin123}
+      MYSQL_REPLICATION_PASSWORD: ${MYSQL_REPLICATION_PASSWORD:-Admin123}
+    volumes:
+      - ./init-dual.sh:/init.sh:ro
+    entrypoint: [bash, /init.sh]
+    restart: "no"
+
+volumes:
+  a_data:
+  b_data:
