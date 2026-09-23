@@ -1,0 +1,68 @@
+# Local, unauthenticated MongoDB 7 single-shard demo. Kept in a separate Compose
+# project so starting it cannot silently reuse the MongoDB 6 demo's volumes.
+name: container-play-mongodb7
+services:
+  mongodb-cfg:
+    image: mongo:${MONGODB_IMAGE_TAG:-7.0}
+    command: [mongod, --configsvr, --replSet, cfgReplSet, --bind_ip_all, --port, "27019"]
+    volumes:
+      - cfg_data:/data/configdb
+    healthcheck:
+      test: [CMD, mongosh, --host, localhost:27019, --quiet, --eval, "db.adminCommand({ping:1}).ok"]
+      interval: 5s
+      retries: 20
+
+  mongodb-cfg-init:
+    image: mongo:${MONGODB_IMAGE_TAG:-7.0}
+    depends_on:
+      mongodb-cfg:
+        condition: service_healthy
+    volumes:
+      - ./init/config-replica-set.sh:/init.sh:ro
+    entrypoint: [bash, /init.sh]
+    restart: "no"
+
+  mongodb-shard0:
+    image: mongo:${MONGODB_IMAGE_TAG:-7.0}
+    command: [mongod, --shardsvr, --replSet, shard0ReplSet, --bind_ip_all, --port, "27018"]
+    volumes:
+      - shard0_data:/data/db
+    healthcheck:
+      test: [CMD, mongosh, --host, localhost:27018, --quiet, --eval, "db.adminCommand({ping:1}).ok"]
+      interval: 5s
+      retries: 20
+
+  mongodb-shard0-init:
+    image: mongo:${MONGODB_IMAGE_TAG:-7.0}
+    depends_on:
+      mongodb-shard0:
+        condition: service_healthy
+    volumes:
+      - ./init/shard-replica-set.sh:/init.sh:ro
+    entrypoint: [bash, /init.sh]
+    restart: "no"
+
+  mongodb-mongos:
+    image: mongo:${MONGODB_IMAGE_TAG:-7.0}
+    depends_on:
+      mongodb-cfg-init:
+        condition: service_completed_successfully
+    command: [mongos, --configdb, cfgReplSet/mongodb-cfg:27019, --bind_ip_all, --port, "27017"]
+    ports:
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:${MONGODB_HOST_PORT:-27017}:27017"
+
+  mongodb-add-shard:
+    image: mongo:${MONGODB_IMAGE_TAG:-7.0}
+    depends_on:
+      mongodb-shard0-init:
+        condition: service_completed_successfully
+      mongodb-mongos:
+        condition: service_started
+    volumes:
+      - ./init/add-shard.sh:/init.sh:ro
+    entrypoint: [bash, /init.sh]
+    restart: "no"
+
+volumes:
+  cfg_data:
+  shard0_data:

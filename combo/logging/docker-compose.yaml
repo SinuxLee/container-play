@@ -11,7 +11,7 @@ services:
     volumes:
       - es_data:/usr/share/elasticsearch/data
     ports:
-      - "9200:9200"
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:9200:9200"
     # 限制 ES 容器最大可用内存，大致控制在 1G 内
     mem_limit: 1g
     networks: [logging]
@@ -25,7 +25,7 @@ services:
       # 限制 Node.js 老生代内存，减少 Kibana 内存占用
       - NODE_OPTIONS=--max-old-space-size=512
     ports:
-      - "5601:5601"
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:5601:5601"
     depends_on: [elasticsearch]
     mem_limit: 768m
     networks: [logging]
@@ -39,8 +39,6 @@ services:
       - ./fluent-bit/parsers.conf:/fluent-bit/etc/parsers.conf:ro
       # 读 Docker 容器日志
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      # 读取容器元数据（可选但常用）
-      - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on: [elasticsearch]
     # Fluent Bit 较轻量，限制在 128MB
     mem_limit: 128m

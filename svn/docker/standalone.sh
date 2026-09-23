@@ -5,8 +5,8 @@ set -ueo pipefail
 docker run -d \
 --name svn \
 --hostname svn \
--p 80:80 \
--p 3690:3690 \
+-p "${HOST_BIND_ADDRESS:-127.0.0.1}:80:80" \
+-p "${HOST_BIND_ADDRESS:-127.0.0.1}:3690:3690" \
 -v $PWD/svn/repo:/home/svn \
 -v $PWD/svn/config:/etc/subversion \
 elleflorio/svn-server:latest
@@ -15,9 +15,7 @@ elleflorio/svn-server:latest
 docker run -d \
 --name svnwebui \
 --hostname svnwebui \
---privileged=true \
--p 6060:6060 \
--p 3690:3690 \
+-p "${HOST_BIND_ADDRESS:-127.0.0.1}:6060:6060" \
 -e BOOT_OPTIONS="--server.port=6060" \
 -v $PWD/svnWebUI:/home/svnWebUI \
 cym1102/svnwebui:1.8.7

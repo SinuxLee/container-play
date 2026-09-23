@@ -6,31 +6,29 @@ services:
     environment:
       - USER_UID=1000
       - USER_GID=1000
-      - GITEA__server__ROOT_URL=http://10.0.17.36:3000/
+      - GITEA__server__ROOT_URL=${GITEA_ROOT_URL:-http://localhost:3000/}
       - GITEA__server__HTTP_PORT=3000
       # 可选：内置 SSH
       - GITEA__server__SSH_PORT=2222
     volumes:
       - gitea_data:/data
     ports:
-      - "3000:3000"   # Web
-      - "2222:22"     # SSH
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:3000:3000"   # Web
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:2222:22"     # SSH
     networks: [cicd]
 
   jenkins:
     image: jenkins/jenkins:lts-alpine-jdk21
     container_name: jenkins
     restart: unless-stopped
-    user: root
     environment:
       - JENKINS_OPTS=--httpPort=8080
     volumes:
       - jenkins_home:/var/jenkins_home
-      # 让 Jenkins 能用宿主机 docker（最常见、最省事）
-      # - /var/run/docker.sock:/var/run/docker.sock
+      # 需要构建容器镜像时，请配置专用构建代理与受控的 Docker 访问权限。
     ports:
-      - "8080:8080"
-      - "50000:50000" # agent
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:8080:8080"
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:50000:50000" # agent
     networks: [cicd]
     depends_on: [gitea]
 

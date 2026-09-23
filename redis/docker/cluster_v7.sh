@@ -6,7 +6,7 @@ docker run -d \
 --name redis-cluster \
 --hostname redis-cluster \
 -e "IP=0.0.0.0" \
--p 7000-7005:7000-7005 \
+-p "${HOST_BIND_ADDRESS:-127.0.0.1}:7000-7005:7000-7005" \
 -v $PWD/redis-cluster:/redis-data \
 --restart=always  \
 grokzen/redis-cluster:7.2.5

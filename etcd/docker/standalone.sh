@@ -5,8 +5,8 @@ docker run -d \
 --name etcd \
 --hostname etcd \
 --restart=always \
--p 2379:2379 \
--p 2380:2380 \
+-p "${HOST_BIND_ADDRESS:-127.0.0.1}:2379:2379" \
+-p "${HOST_BIND_ADDRESS:-127.0.0.1}:2380:2380" \
 -v $PWD/etcd:/bitnami/etcd/data \
 --env ALLOW_NONE_AUTHENTICATION=yes \
 --env ETCD_ENABLE_V2=true \
@@ -20,6 +20,6 @@ docker run -d \
 --name etcdkeeper \
 --hostname etcdkeeper \
 --restart=always \
--p 8080:8080 \
+-p "${HOST_BIND_ADDRESS:-127.0.0.1}:8080:8080" \
 --link etcd:etcd \
 evildecay/etcdkeeper

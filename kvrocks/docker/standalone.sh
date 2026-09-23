@@ -14,7 +14,7 @@ fi
 docker run -d \
 --name kvrocks \
 --hostname kvrocks \
--p 6666:6666 \
+-p "${HOST_BIND_ADDRESS:-127.0.0.1}:6666:6666" \
 -u root \
 --restart always \
 -v $PWD/kvrocks:/var/lib/kvrocks \

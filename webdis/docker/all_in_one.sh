@@ -4,7 +4,7 @@ set -ueo pipefail
 docker run -d \
 --name webdis \
 --hostname webdis \
--p 7379:7379 \
+-p "${HOST_BIND_ADDRESS:-127.0.0.1}:7379:7379" \
 -e LOCAL_REDIS=true \
 -e WEBSOCKETS=true \
 anapsix/webdis

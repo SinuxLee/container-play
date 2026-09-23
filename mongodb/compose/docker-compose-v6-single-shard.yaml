@@ -1,48 +1,66 @@
-version: '3.8'
-
+# Local, unauthenticated single-shard demo. Only mongos is published, on loopback.
 services:
-  # 1. Config Server（单节点）
   mongodb-cfg:
     image: mongo:6.0
-    container_name: mongodb-cfg
-    command: >
-      mongod --config /config/mongod.conf
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: admin
+    command: [mongod, --configsvr, --replSet, cfgReplSet, --bind_ip_all, --port, "27019"]
     volumes:
-      - /data/mongodb/cfg/db:/data/db
-      - /data/mongodb/cfg/mongod.conf:/config/mongod.conf:ro
-    ports:
-      # configsvr 通常不对外暴露，这里示例保留，方便调试
-      - "27019:27017"
+      - cfg_data:/data/configdb
+    healthcheck:
+      test: [CMD, mongosh, --host, localhost:27019, --quiet, --eval, "db.adminCommand({ping:1}).ok"]
+      interval: 5s
+      retries: 20
 
-  # 2. Shard0（单节点 replica set）
+  mongodb-cfg-init:
+    image: mongo:6.0
+    depends_on:
+      mongodb-cfg:
+        condition: service_healthy
+    volumes:
+      - ./init/config-replica-set.sh:/init.sh:ro
+    entrypoint: [bash, /init.sh]
+    restart: "no"
+
   mongodb-shard0:
     image: mongo:6.0
-    container_name: mongodb-shard0
-    command: >
-      mongod --config /config/mongod.conf
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: admin
+    command: [mongod, --shardsvr, --replSet, shard0ReplSet, --bind_ip_all, --port, "27018"]
     volumes:
-      - /data/mongodb/shard0/db:/data/db
-      - /data/mongodb/shard0/mongod.conf:/config/mongod.conf:ro
-    ports:
-      # shard0 自己端口（调试用）
-      - "27018:27017"
+      - shard0_data:/data/db
+    healthcheck:
+      test: [CMD, mongosh, --host, localhost:27018, --quiet, --eval, "db.adminCommand({ping:1}).ok"]
+      interval: 5s
+      retries: 20
 
-  # 3. mongos（路由进程）
+  mongodb-shard0-init:
+    image: mongo:6.0
+    depends_on:
+      mongodb-shard0:
+        condition: service_healthy
+    volumes:
+      - ./init/shard-replica-set.sh:/init.sh:ro
+    entrypoint: [bash, /init.sh]
+    restart: "no"
+
   mongodb-mongos:
     image: mongo:6.0
-    container_name: mongodb-mongos
     depends_on:
-      - mongodb-cfg
-      - mongodb-shard0
-    command: >
-      mongos --config /config/mongos.conf
+      mongodb-cfg-init:
+        condition: service_completed_successfully
+    command: [mongos, --configdb, cfgReplSet/mongodb-cfg:27019, --bind_ip_all, --port, "27017"]
     ports:
-      - "27017:27017"
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:27017:27017"
+
+  mongodb-add-shard:
+    image: mongo:6.0
+    depends_on:
+      mongodb-shard0-init:
+        condition: service_completed_successfully
+      mongodb-mongos:
+        condition: service_started
     volumes:
-      - /data/mongodb/mongos/mongos.conf:/config/mongos.conf:ro
+      - ./init/add-shard.sh:/init.sh:ro
+    entrypoint: [bash, /init.sh]
+    restart: "no"
+
+volumes:
+  cfg_data:
+  shard0_data:

@@ -13,8 +13,8 @@ docker run --name openresty-temp -d openresty/openresty:rocky \
 docker run -d  \
 --name openresty \
 --hostname openresty \
--p 8080:8080 \
--p 9090:9090 \
+-p "${HOST_BIND_ADDRESS:-127.0.0.1}:8080:8080" \
+-p "${HOST_BIND_ADDRESS:-127.0.0.1}:9090:9090" \
 -v $PWD/conf:/usr/local/openresty/nginx/conf \
 -v $PWD/html:/usr/local/openresty/nginx/html \
 -v $PWD/logs:/usr/local/openresty/nginx/logs \

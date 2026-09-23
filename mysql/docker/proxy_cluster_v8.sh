@@ -1,3 +1,4 @@
-#!/usr/bin/bash env
+#!/usr/bin/env bash
 
-echo "implement me"
+echo "未实现：mysql/docker/proxy_cluster_v8.sh。请勿将此脚本作为可用部署方案。" >&2
+exit 2

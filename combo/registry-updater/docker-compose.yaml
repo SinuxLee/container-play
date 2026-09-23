@@ -4,9 +4,10 @@ services:
     container_name: registry
     restart: unless-stopped
     ports:
-      - "5000:5000"
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:5000:5000"
     environment:
       - REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY=/var/lib/registry
+      - REGISTRY_STORAGE_DELETE_ENABLED=true
     volumes:
       - registry_data:/var/lib/registry
     networks: [devops]
@@ -19,10 +20,12 @@ services:
     environment:
       - SINGLE_REGISTRY=true
       - REGISTRY_TITLE=Local Docker Registry
-      - REGISTRY_URL=http://registry:5000
+      - NGINX_PROXY_PASS_URL=http://registry:5000
       # UI 访问路径下拉镜像列表
     ports:
-      - "5002:80"
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:5002:80"
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
     depends_on: [registry]
     networks: [devops]
 
@@ -32,11 +35,12 @@ services:
     image: nickfedor/watchtower:1.13
     container_name: watchtower
     restart: unless-stopped
+    profiles: [auto-update]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
-      # 每 30 秒检查一次（演示用；生产建议 1-5 分钟以上）
-      - WATCHTOWER_POLL_INTERVAL=30
+      # 每 5 分钟检查一次；仅在启用 auto-update profile 时运行
+      - WATCHTOWER_POLL_INTERVAL=300
       # 只更新显式标记了 label 的容器（避免把全机都更新炸了）
       - WATCHTOWER_LABEL_ENABLE=true
       # 更新后清理旧镜像，避免磁盘爆

@@ -12,7 +12,7 @@ services:
       - ./prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
       - prometheus_data:/prometheus
     ports:
-      - "9090:9090"
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:9090:9090"
     networks: [monitoring]
 
   alertmanager:
@@ -26,7 +26,7 @@ services:
       - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
       - alertmanager_data:/alertmanager
     ports:
-      - "9093:9093"
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:9093:9093"
     networks: [monitoring]
 
   node-exporter:
@@ -35,11 +35,11 @@ services:
     restart: unless-stopped
     # 采集宿主机指标（Linux 常用方式）
     pid: host
-    network_mode: host
     command:
       - --path.rootfs=/host
     volumes:
       - /:/host:ro #,rslave
+    networks: [monitoring]
 
   grafana:
     image: grafana/grafana:12.3
@@ -47,12 +47,12 @@ services:
     restart: unless-stopped
     environment:
       - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-      # 首次进入建议立刻改密码
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-Admin123}
     volumes:
       - grafana_data:/var/lib/grafana
+      - ../../grafana/provisioning:/etc/grafana/provisioning:ro
     ports:
-      - "3000:3000"
+      - "${HOST_BIND_ADDRESS:-127.0.0.1}:3000:3000"
     networks: [monitoring]
     depends_on:
       - prometheus

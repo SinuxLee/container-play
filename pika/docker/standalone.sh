@@ -1,8 +1,15 @@
 #!/usr/bin/env bash
 set -ueo pipefail
 
+PIKA_PASSWORD="${PIKA_PASSWORD:-Admin123}"
+if [[ ! "$PIKA_PASSWORD" =~ ^[A-Za-z0-9._~-]{8,}$ ]]; then
+  echo "PIKA_PASSWORD must contain at least 8 URL-safe characters" >&2
+  exit 2
+fi
+
 mkdir -p pika/{conf,db,log}
-cat > pika/conf/pika.conf <<'EOF'
+umask 077
+cat > pika/conf/pika.conf <<EOF
 # Pika port
 port : 9221
 
@@ -41,7 +48,7 @@ timeout : 60
 # Requirepass
 # 密码管理员密码, 默认为空, 如果该参数与下方的userpass参数相同(包括同时为空), 则userpass参数将自动失效, 所有用户均为
 # 管理员身份不受userblacklist参数的限制
-requirepass : adminpass
+requirepass : $PIKA_PASSWORD
 
 # Masterauth
 # 同步验证密码, 用于slave(从库)连接master(主库)请求同步时进行验证, 该参数需要与master(主库)的requirepass一致
@@ -256,13 +263,12 @@ max-bytes-for-level-multiplier : 10
 EOF
 
 docker run -d \
--p 9221:9221 \
+-p "${HOST_BIND_ADDRESS:-127.0.0.1}:9221:9221" \
 --name pika \
 --hostname pika \
--v $PWD/pika/conf:/pika/conf:ro \
--v $PWD/pika/db:/pika/db \
--v $PWD/pika/log:/pika/log \
+-v "$PWD/pika/conf:/pika/conf:ro" \
+-v "$PWD/pika/db:/pika/db" \
+-v "$PWD/pika/log:/pika/log" \
 -v /etc/localtime:/etc/localtime \
 --restart=always \
---privileged=true \
 pikadb/pika:v3.4.0

@@ -5,7 +5,7 @@ set -ueo pipefail
 docker run -d \
 --name swagger-editor \
 --hostname swagger-editor \
--p 9080:9080 \
+-p "${HOST_BIND_ADDRESS:-127.0.0.1}:9080:9080" \
 -e PORT=9080 \
 -e URL="https://petstore3.swagger.io/api/v3/openapi.json" \
 -v $PWD:/tmp -e SWAGGER_FILE=/tmp/swagger.json \

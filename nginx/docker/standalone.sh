@@ -49,7 +49,7 @@ EOF
 docker run \
 --name nginx \
 --hostname nginx \
--d -p 8088:80 \
+-d -p "${HOST_BIND_ADDRESS:-127.0.0.1}:8088:80" \
 --env TZ='Asia/Shanghai' \
 -v "$PWD/nginx/conf/nginx.conf:/etc/nginx/nginx.conf:ro" \
 -v "$PWD/nginx/conf.d:/etc/nginx/conf.d" \

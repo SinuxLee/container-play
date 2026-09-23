@@ -55,7 +55,7 @@ function push() {
 }
 
 function clean() {
-  docker image prune -f -a
+  docker image prune -f
 }
 
 function status() {
@@ -67,7 +67,7 @@ function help_me() {
 }
 
 
-case "$1" in
+case "${1:-}" in
   "" )
     help_me
     ;;
@@ -91,4 +91,3 @@ case "$1" in
     help_me
     ;;
 esac
-
